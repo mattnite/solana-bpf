@@ -1,0 +1,5 @@
+# solana-bpf
+
+```
+./docker.sh
+```
