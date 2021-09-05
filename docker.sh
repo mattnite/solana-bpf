@@ -1,4 +1,4 @@
 #!/bin/sh
 
 docker build -t solana-llvm .
-docker run -v .:/work solana-llvm
+docker run -v ${PWD}:/work solana-llvm
