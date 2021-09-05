@@ -2,4 +2,5 @@
 
 ```
 ./docker.sh
+node ./run.js
 ```
