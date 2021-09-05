@@ -19,6 +19,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 #include <stdio.h>
+#include <iostream>
 
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -27,44 +28,9 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/Support/TargetSelect.h"
 
-#include "wasm-tools.h"
-
-using namespace llvm;
 using namespace clang;
-using namespace std::literals;
 
-#define STRX(s) STR(s)
-#define STR(s) #s
-
-template <typename T, typename... A> IntrusiveRefCntPtr<T> make_intr(A&&... a) {
-    return {new T{std::forward<A>(a)...}};
-}
-
-/*
- * 
-C_FLAGS := \
-  -Werror \
-  -O2 \
-  -fno-builtin \
-  -std=c17 \
-  $(addprefix -isystem,$(SYSTEM_INC_DIRS)) \
-  $(addprefix -I,$(INC_DIRS))
-
-  BPF_C_FLAGS := \
-  $(C_FLAGS) \
-  -target bpf \
-  -fPIC \
-  -march=bpfel+solana
-
-  BPF_LLD_FLAGS := \
-  -z notext \
-  -shared \
-  --Bdynamic \
-  $(LOCAL_PATH)bpf.ld \
-  --entry entrypoint \
- */
-
-static auto triple = "wasm32-unknown-unknown-bpf+solana";
+static auto triple = "bpfel-unknown-unknown-bpfel+solana";
 static auto host_triple = "wasm32-unknown-unknown-wasm";
 
 extern "C" bool compile(
@@ -83,7 +49,7 @@ extern "C" bool compile(
     CompilerInvocation::setLangDefaults(
         compiler->getLangOpts(),
         InputKind(Language::C),
-        Triple{triple},
+        llvm::Triple{triple},
         includes,
         LangStandard::Kind::lang_c17);
 
@@ -95,15 +61,24 @@ extern "C" bool compile(
     sOpts.UseBuiltinIncludes = false;
     sOpts.UseStandardSystemIncludes = false;
 
-    sOpts.AddPath("/usr/include", frontend::System, false, true);
-
-    //compiler->getPreprocessorOpts().addMacroDef("__EMSCRIPTEN__");
+    sOpts.AddPath("/usr/include/clang", frontend::System, false, true);
+    sOpts.AddPath("/usr/include/solana", frontend::System, false, true);
 
     compiler->getCodeGenOpts().CodeModel = "default";
     //compiler->getCodeGenOpts().RelocationModel = "static";
     //compiler->getCodeGenOpts().ThreadModel = "single";
     compiler->getCodeGenOpts().OptimizationLevel = 2; // -Os
     compiler->getCodeGenOpts().OptimizeSize = 1;      // -Os
+
+    // Linker options:
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("-z");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("notext");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("-shared");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("--Bdynamic");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("/usr/share/bpf.ld");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("--entry");
+    //compiler->getCodeGenOpts().LinkerOptions.push_back("entrypoint");
+
     compiler->getLangOpts().Optimize = 1;
     compiler->getLangOpts().OptimizeSize = 1;
 

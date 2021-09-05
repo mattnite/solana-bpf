@@ -63,4 +63,7 @@ RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project && mkdir build-wasm && cd b
         -DLLVM_TARGET_ARCH=wasm32 \
         ../llvm && ninja
 
+RUN apt-get install wget
+RUN mkdir -p /bpf-tools && wget -qO- https://github.com/solana-labs/bpf-tools/releases/download/v1.15/solana-bpf-tools-linux.tar.bz2 | tar -xj -C bpf-tools
+
 CMD ["/work/build.sh"]
