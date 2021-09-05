@@ -69,6 +69,7 @@ extern "C" bool compile(
     //compiler->getCodeGenOpts().ThreadModel = "single";
     compiler->getCodeGenOpts().OptimizationLevel = 2; // -Os
     compiler->getCodeGenOpts().OptimizeSize = 1;      // -Os
+    compiler->getCodeGenOpts().setDebugInfo(codegenoptions::DebugInfoKind::FullDebugInfo);
 
     // Linker options:
     //compiler->getCodeGenOpts().LinkerOptions.push_back("-z");
