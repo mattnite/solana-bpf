@@ -5,10 +5,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --embed-file usr -s MODULA
 file(COPY solana/sdk/bpf/c/inc/ DESTINATION usr/include/solana)
 file(COPY solana/sdk/bpf/c/bpf.ld DESTINATION usr/share)
 file(COPY /llvm-project/build-wasm/lib/clang/12.0.1/include/ DESTINATION usr/include/clang)
-file(RENAME
-        /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib
-        /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins.rlib)
-file(COPY /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins.rlib DESTINATION usr/lib)
+file(COPY /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib DESTINATION usr/lib/libcompiler_builtins.rlib)
 
 link_directories(/llvm-project/build-wasm/lib)
 add_executable(clang-solana-bpf src/clang.cpp)
@@ -18,7 +15,7 @@ target_include_directories(clang-solana-bpf
         PRIVATE /llvm-project/build-wasm/tools/clang/include
         PRIVATE /llvm-project/clang/include
         PRIVATE /llvm-project/llvm/include
-        PRIVATE /work/include)
+        PRIVATE usr/include)
 
 target_compile_options(clang-solana-bpf PRIVATE
         -stdlib=libc++

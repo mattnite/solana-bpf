@@ -25,77 +25,71 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
+#include "clang/FrontendTool/Utils.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/StringSaver.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/ADT/ArrayRef.h"
 
 using namespace clang;
 
-static auto triple = "bpfel-unknown-unknown-bpfel+solana";
-static auto host_triple = "wasm32-unknown-unknown-wasm";
+static void LLVMErrorHandler(void *UserData, const std::string &Message, bool GenCrashDiag)
+{
+    DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine *>(UserData);
+    Diags.Report(diag::err_fe_error_backend) << Message;
+    llvm::sys::RunInterruptHandlers();
+    llvm::sys::Process::Exit(GenCrashDiag ? 70 : 1);
+}
 
-extern "C" bool compile(
-        const char* inputFilename,
-        const char* outputFilename
-) {
+extern "C" bool compile(ArrayRef<const char *> Argv, const char *Argv0)
+{
+    std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
+    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmPrinters();
     llvm::InitializeAllAsmParsers();
 
-    auto compiler = std::make_unique<CompilerInstance>();
-    compiler->createDiagnostics();
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
+    TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
+    DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
 
-    std::vector<std::string> includes{};
-    CompilerInvocation::setLangDefaults(
-        compiler->getLangOpts(),
-        InputKind(Language::C),
-        llvm::Triple{triple},
-        includes,
-        LangStandard::Kind::lang_c17);
+    bool Success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(), Argv, Diags, Argv0);
 
-    compiler->getFrontendOpts().Inputs.push_back(
-            FrontendInputFile{inputFilename, InputKind(Language::C)});
-    compiler->getFrontendOpts().OutputFile = outputFilename;
+    Clang->createDiagnostics();
+    if (!Clang->hasDiagnostics())
+        return false;
 
-    auto& sOpts = compiler->getHeaderSearchOpts();
-    sOpts.UseBuiltinIncludes = false;
-    sOpts.UseStandardSystemIncludes = false;
+    llvm::install_fatal_error_handler(LLVMErrorHandler,
+                                      static_cast<void *>(&Clang->getDiagnostics()));
 
-    sOpts.AddPath("/usr/include/clang", frontend::System, false, true);
-    sOpts.AddPath("/usr/include/solana", frontend::System, false, true);
+    DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
+    if (!Success)
+        return false;
 
-    compiler->getCodeGenOpts().CodeModel = "default";
-    //compiler->getCodeGenOpts().RelocationModel = "static";
-    //compiler->getCodeGenOpts().ThreadModel = "single";
-    compiler->getCodeGenOpts().OptimizationLevel = 2; // -Os
-    compiler->getCodeGenOpts().OptimizeSize = 1;      // -Os
-    compiler->getCodeGenOpts().setDebugInfo(codegenoptions::DebugInfoKind::FullDebugInfo);
+    Success = ExecuteCompilerInvocation(Clang.get());
+    if (!Success)
+        return false;
 
-    // Linker options:
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("-z");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("notext");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("-shared");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("--Bdynamic");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("/usr/share/bpf.ld");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("--entry");
-    //compiler->getCodeGenOpts().LinkerOptions.push_back("entrypoint");
+    llvm::remove_fatal_error_handler();
 
-    compiler->getLangOpts().Optimize = 1;
-    compiler->getLangOpts().OptimizeSize = 1;
-
-    compiler->getTargetOpts().Triple = triple;
-    compiler->getTargetOpts().HostTriple = host_triple;
-
-    auto act = std::make_unique<EmitObjAction>();
-    return compiler->ExecuteAction(*act);
+    return Success;
 }
 
-int main(int argc, const char* argv[]) {
-    if (argc == 3)
-        return !compile(argv[1], argv[2]);
-    if (argc > 1) {
-        fprintf(stderr, "Usage: input_file.cpp output_file.wasm\n");
-        return 1;
-    }
-    return 0;
+int main(int argc_, const char *argv_[])
+{
+    SmallVector<const char *, 256> argv(argv_, argv_ + argc_);
+
+    llvm::BumpPtrAllocator A;
+    llvm::StringSaver Saver(A);
+    llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv,
+                                  /*MarkEOLs=*/false);
+
+    return !compile(makeArrayRef(argv).slice(1), argv[0]);
 }

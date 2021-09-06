@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "zig.mod": "yaml",
+        "assert.h": "c",
+        "string.h": "c"
+    }
+}
