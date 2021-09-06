@@ -1,16 +1,16 @@
-var clangFactory = require('./build/clang-solana-bpf.js');
+const clangFactory = require('./build/clang-solana-bpf.js');
 
-clangFactory().then((clang) => {
+(async () => {
+  const clang = await clangFactory({ noInitialRun: true });
+
   clang.FS.mkdir('/work');
   clang.FS.mount(clang.NODEFS, { root: '.' }, '/work');
 
   const ret = clang.callMain([
-    // "clang",
-
-    "--linker-option=-z notext",
-    "--linker-option=-shared",
-    "--linker-option=--Bdynamic /usr/share/bpf.ld",
-    "--linker-option=--entry entrypoint",
+    // "--linker-option=-z notext",
+    // "--linker-option=--shared",
+    // "--linker-option=--Bdynamic /usr/share/bpf.ld",
+    // "--linker-option=--entry=entrypoint",
 
     "-Werror",
     "-O2",
@@ -28,8 +28,10 @@ clangFactory().then((clang) => {
     "-I/usr/include/solana",
 
     "-triple", "bpfel-unknown-unknown-bpfel+solana",
+    "-emit-obj",
 
-    "-o", "/work/test/sha.so",
+    "-o", "/work/sha.so",
+    "-version",
 
     "-x", "c++",
     "/work/test/sha.c",
@@ -37,4 +39,4 @@ clangFactory().then((clang) => {
   if (ret != 0) {
     console.log('compiler exited with ' + ret);
   }
-});
+})();

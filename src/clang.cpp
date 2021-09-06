@@ -27,6 +27,7 @@
 #include "clang/Frontend/TextDiagnosticBuffer.h"
 #include "clang/FrontendTool/Utils.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
@@ -69,6 +70,13 @@ extern "C" bool compile(ArrayRef<const char *> Argv, const char *Argv0)
     llvm::install_fatal_error_handler(LLVMErrorHandler,
                                       static_cast<void *>(&Clang->getDiagnostics()));
 
+    for (auto &input : Clang->getFrontendOpts().Inputs)
+    {
+        std::cout << "input: '" << input.getFile().data() << "'" << std::endl;
+    }
+
+    std::cout << "output: '" << Clang->getFrontendOpts().OutputFile.data() << "'" << std::endl;
+
     DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
     if (!Success)
         return false;
@@ -86,10 +94,18 @@ int main(int argc_, const char *argv_[])
 {
     SmallVector<const char *, 256> argv(argv_, argv_ + argc_);
 
+    llvm::InitLLVM X(argc_, argv_);
+    if (llvm::sys::Process::FixupStandardFileDescriptors())
+        return 1;
+
     llvm::BumpPtrAllocator A;
     llvm::StringSaver Saver(A);
-    llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv,
-                                  /*MarkEOLs=*/false);
+    llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv, /*MarkEOLs=*/false);
+
+    for (auto &arg : argv)
+    {
+        std::cout << "arg: '" << arg << "'" << std::endl;
+    }
 
     return !compile(makeArrayRef(argv).slice(1), argv[0]);
 }
