@@ -25,8 +25,8 @@ const lldFactory = require('./build/lld.js');
     "-triple", "bpfel-unknown-unknown-bpfel+solana",
     "-emit-obj",
 
-    "-o", "/work/sha.o",
-    "/work/test/sha.c",
+    "-o", "/work/logging.o",
+    "/work/test/logging.c",
   ]);
   if (ret != 0) {
     console.log('compiler exited with ' + ret);
@@ -39,8 +39,8 @@ const lldFactory = require('./build/lld.js');
     "--Bdynamic",
     "/clang/usr/share/bpf.ld",
     "--entry", "entrypoint",
-    "-o", "/clang/work/sha.so",
-    "/clang/work/sha.o",
+    "-o", "/clang/work/logging.so",
+    "/clang/work/logging.o",
     "/clang/usr/lib/libcompiler_builtins.rlib",
   ]);
   if (ret != 0) {
