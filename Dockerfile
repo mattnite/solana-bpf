@@ -40,7 +40,7 @@ RUN cd llvm-project && mkdir build-host && cd build-host && \
 RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project && mkdir build-wasm && cd build-wasm && \
     emcmake cmake -G "Ninja" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_EXE_LINKER_FLAGS="-s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
+        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
         -DLLVM_ENABLE_PROJECTS="lld;clang" \
         -DLLVM_ENABLE_DUMP=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \
