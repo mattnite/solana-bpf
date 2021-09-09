@@ -1,17 +1,21 @@
 FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y git
-RUN git clone --single-branch --branch bpf-tools-v1.15 https://github.com/solana-labs/llvm-project.git
 # Install compiler, python and subversion.
+RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    git \
                     build-essential \
                     gcc \
                     g++ \
                     python \
                     python3 \
                     cmake \
-                    ninja-build
+                    ninja-build \
+                    wget
 
+RUN git clone --single-branch --branch bpf-tools-v1.15 https://github.com/solana-labs/llvm-project.git
+RUN mkdir -p /bpf-tools && wget -qO- https://github.com/solana-labs/bpf-tools/releases/download/v1.15/solana-bpf-tools-linux.tar.bz2 | tar -xj -C bpf-tools
+RUN git clone --single-branch --branch v1.7.11 https://github.com/solana-labs/solana.git
 RUN git clone https://github.com/emscripten-core/emsdk.git && cd emsdk && ./emsdk install 2.0.29 && ./emsdk activate latest
 
 RUN cd llvm-project && mkdir build-host && cd build-host && \
@@ -37,10 +41,15 @@ RUN cd llvm-project && mkdir build-host && cd build-host && \
         -DLLVM_ENABLE_TERMINFO=OFF \
         ../llvm && ninja
 
-RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project && mkdir build-wasm && cd build-wasm && \
+RUN mkdir -p /llvm-project/build-wasm/usr/share
+RUN mkdir -p /llvm-project/build-wasm/usr/lib
+RUN cp /solana/sdk/bpf/c/bpf.ld /llvm-project/build-wasm/usr/share
+RUN cp /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib /llvm-project/build-wasm/usr/lib/libcompiler_builtins.rlib
+
+RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project/build-wasm && \
     emcmake cmake -G "Ninja" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
+        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s ENVIRONMENT=web -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js -lidbfs.js" \
         -DLLVM_ENABLE_PROJECTS="lld;clang" \
         -DLLVM_ENABLE_DUMP=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \
@@ -63,8 +72,5 @@ RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project && mkdir build-wasm && cd b
         -DCLANG_TABLEGEN=../build-host/bin/clang-tblgen \
         -DLLVM_TARGET_ARCH=wasm32 \
         ../llvm && ninja
-
-RUN apt-get install wget
-RUN mkdir -p /bpf-tools && wget -qO- https://github.com/solana-labs/bpf-tools/releases/download/v1.15/solana-bpf-tools-linux.tar.bz2 | tar -xj -C bpf-tools
 
 CMD ["/work/build.sh"]

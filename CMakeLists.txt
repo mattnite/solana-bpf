@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 2.8.9)
 project(clang-solana-bpf)
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --embed-file usr -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"NODEFS\"]' -lnodefs.js")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --embed-file usr -s ENVIRONMENT=web -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\", \"IDBFS\"]' -lidbfs.js")
 file(COPY solana/sdk/bpf/c/inc/ DESTINATION usr/include/solana)
 file(COPY solana/sdk/bpf/c/bpf.ld DESTINATION usr/share)
+file(COPY test/logging.c DESTINATION usr/share)
 file(COPY /llvm-project/build-wasm/lib/clang/12.0.1/include/ DESTINATION usr/include/clang)
 file(COPY /llvm-project/build-wasm/bin/lld.js DESTINATION .)
 file(COPY /llvm-project/build-wasm/bin/lld.wasm DESTINATION .)
