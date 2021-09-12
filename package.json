@@ -6,12 +6,13 @@
   "author": "Alon",
   "license": "MIT",
   "scripts": {
-    "build": "esbuild app.jsx --bundle --outfile=build/out.js"
+    "build": "node build.js"
   },
   "dependencies": {
     "@solana/web3.js": "^1.24.2",
-    "esbuild": "^0.12.25",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "svelte": "^3.42.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.12.26"
   }
 }

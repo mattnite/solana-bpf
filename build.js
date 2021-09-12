@@ -1,75 +1,52 @@
-const clangFactory = require('./build/clang-solana-bpf.js');
-const lldFactory = require('./build/lld.js');
+const esbuild = require("esbuild");
 
-export async function createProgram(sources) {
-  const objects = await Promise.all(sources.map(file => compile(file.contents)));
-  console.log(objects);
 
-  const clang = await clangFactory({ noInitialRun: true });
-  const linkerscript = await clang.FS.readFile('/usr/share/bpf.ld');
-  const compiler_builtins = await clang.FS.readFile('/usr/lib/libcompiler_builtins.rlib');
 
-  console.log('about to link');
-  return link(linkerscript, compiler_builtins, objects);
+let sveltePlugin = {
+    name: 'svelte',
+    setup(build) {
+        let svelte = require('svelte/compiler')
+        let path = require('path')
+        let fs = require('fs')
+
+        build.onLoad({ filter: /\.svelte$/ }, async (args) => {
+            // This converts a message in Svelte's format to esbuild's format
+            let convertMessage = ({ message, start, end }) => {
+                let location
+                if (start && end) {
+                    let lineText = source.split(/\r\n|\r|\n/g)[start.line - 1]
+                    let lineEnd = start.line === end.line ? end.column : lineText.length
+                    location = {
+                        file: filename,
+                        line: start.line,
+                        column: start.column,
+                        length: lineEnd - start.column,
+                        lineText,
+                    }
+                }
+                return { text: message, location }
+            }
+
+            // Load the file from the file system
+            let source = await fs.promises.readFile(args.path, 'utf8')
+            let filename = path.relative(process.cwd(), args.path)
+
+            // Convert Svelte syntax to JavaScript
+            try {
+                let { js, warnings } = svelte.compile(source, { filename })
+                let contents = js.code + `//# sourceMappingURL=` + js.map.toUrl()
+                return { contents, warnings: warnings.map(convertMessage) }
+            } catch (e) {
+                return { errors: [convertMessage(e)] }
+            }
+        })
+    }
 }
 
-export async function compile(source) {
-  const clang = await clangFactory({ noInitialRun: true });
-  clang.FS.mkdir('/data');
-  clang.FS.writeFile('/data/file.c', source);
-  const ret = clang.callMain([
-    "-Werror",
-    "-O2",
-    "-fno-builtin",
-    "-std=c17",
-    "-isystem/usr/include/clang",
-    "-isystem/usr/include/solana",
-    "-mrelocation-model", "pic",
-    "-pic-level", "2",
-    "-triple", "bpfel-unknown-unknown-bpfel+solana",
-    "-emit-obj",
-
-    "-o", "/data/out.o",
-    "/data/file.c",
-  ]);
-  if (ret != 0) {
-    console.log('compiler exited with ' + ret);
-    throw 'failed to compile';
-  }
-
-  const file = clang.FS.readFile('/data/out.o');
-  console.log(file);
-  return file;
-}
-
-export async function link(linkerscript, compiler_builtins, objects) {
-  const lld = await lldFactory({ noInitialRun: true });
-  lld.FS.mkdir('/data');
-
-  lld.FS.writeFile('/data/bpf.ld', linkerscript);
-  lld.FS.writeFile('/data/compiler_builtins.rlib', compiler_builtins);
-  const file_paths = objects.map((obj, i) => {
-    const path = '/data/file' + i + '.o';
-    lld.FS.writeFile(path, obj);
-    return path;
-  });
-
-  console.log(file_paths);
-  const args = [
-    "-flavor", "ld",
-    "-z", "notext",
-    "-shared",
-    "--Bdynamic",
-    "/data/bpf.ld",
-    "--entry", "entrypoint",
-    "-o", "/data/out.so",
-  ];
-  
-  const ret = lld.callMain(args.concat(file_paths.concat(['/data/compiler_builtins.rlib'])));
-  if (ret != 0) {
-    console.log('lld exited with ' + ret);
-    throw 'failed to link';
-  }
-
-  return lld.FS.readFile('/data/out.so');
-}
+esbuild.build({
+    entryPoints: ["app.js"],
+    bundle: true,
+    outfile: "build/out.js",
+    plugins: [sveltePlugin],
+    logLevel: "info",
+}).catch(() => process.exit(1));
