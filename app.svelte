@@ -93,8 +93,6 @@ extern uint64_t entrypoint(const uint8_t *input) {
         return [clang, lld];
     }
 
-    const compiler_promise = loadCompiler();
-
     async function compileAndLink(clang, lld) {
         // write out code and compile
 
@@ -131,16 +129,25 @@ extern uint64_t entrypoint(const uint8_t *input) {
         const shared_object_file = await lld.FS.readFile("/data/file.so");
         console.log("program:", shared_object_file);
     }
+
+    let compiler_promise = loadCompiler();
+    let compiling_promise = Promise.all([compiler_promise, Promise.resolve()]);
 </script>
 
 <textarea value={code} />
 <input type="text" value={clang_flags.join(" ")} />
 <input type="text" value={lld_flags.join(" ")} />
 
-{#await compiler_promise}
+{#await compiling_promise}
     <button disabled>Build</button>
-{:then [clang, lld]}
-    <button on:click|once={() => compileAndLink(clang, lld)}>Build</button>
+{:then [[clang, lld], _]}
+    <button
+        on:click|once={() =>
+            (compiling_promise = Promise.all([
+                compiler_promise,
+                compileAndLink(clang, lld),
+            ]))}>Build</button
+    >
 {/await}
 
 <style>
