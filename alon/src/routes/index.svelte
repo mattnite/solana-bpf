@@ -64,10 +64,10 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		'notext',
 		'-shared',
 		'--Bdynamic',
-		'/clang/usr/share/bpf.ld',
+		'/data/bpf.ld',
 		'--entry',
 		'entrypoint',
-		'/clang/usr/lib/libcompiler_builtins.rlib'
+		'/data/libcompiler_builtins.rlib'
 	];
 
 	async function loadCompiler() {
@@ -76,21 +76,25 @@ extern uint64_t entrypoint(const uint8_t *input) {
 			lld_factory({ noInitialRun: true })
 		]);
 
-		// init clang
-
-		await clang.init();
-
 		window.clang = clang;
 		window.lld = lld;
 
-		// mount fs
-
-		await lld.FS.mkdir('/clang');
-		await lld.FS.mount(lld.PROXYFS, { root: '/', fs: clang.FS }, '/clang');
-
 		// create directory /data
 
+		await lld.FS.mkdir('/data');
 		await clang.FS.mkdir('/data');
+
+		// move linker scripts
+
+		const linker_script = await clang.FS.readFile('/usr/share/bpf.ld');
+		await lld.FS.writeFile('/data/bpf.ld', linker_script);
+
+		const compiler_builtins = await clang.FS.readFile('/usr/lib/libcompiler_builtins.rlib');
+		await lld.FS.writeFile('/data/libcompiler_builtins.rlib', compiler_builtins);
+
+		// init clang
+
+		await clang.init();
 
 		return [clang, lld];
 	}
@@ -116,34 +120,21 @@ extern uint64_t entrypoint(const uint8_t *input) {
 			throw new Error(`clang exited with error code: ${clang_result}`);
 		}
 
-		// sync fs
-
-		await new Promise((resolve, reject) =>
-			clang.FS.syncfs(false, (err) => {
-				if (err) reject(err);
-				resolve();
-			})
-		);
-
-		await new Promise((resolve, reject) =>
-			clang.FS.syncfs(true, (err) => {
-				if (err) reject(err);
-				resolve();
-			})
-		);
-
 		// link object file into shared object
 
 		console.log('Linking...');
 
+		const object_file = await clang.FS.readFile('/data/file.o');
+		await lld.FS.writeFile('/data/file.o', object_file);
+
 		const lld_result = await lld.callMain(
-			lld_flags.concat(['-o', '/clang/data/file.so', '/clang/data/file.o'])
+			lld_flags.concat(['-o', '/data/file.so', '/data/file.o'])
 		);
 		if (lld_result != 0) {
 			throw new Error(`lld exited with error code: ${lld_result}`);
 		}
 
-		const shared_object_file = await lld.FS.readFile('/clang/data/file.so');
+		const shared_object_file = await lld.FS.readFile('/data/file.so');
 		console.log('program:', shared_object_file);
 	}
 
