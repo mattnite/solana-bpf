@@ -5,9 +5,6 @@
 	import clang_factory from './clang-solana-bpf.js';
 	import lld_factory from './lld.js';
 
-	console.log(clang_factory);
-	console.log(lld_factory);
-
 	let code = `/**
  * @brief A program demonstrating logging
  */
@@ -67,10 +64,10 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		'notext',
 		'-shared',
 		'--Bdynamic',
-		'/data/bpf.ld',
+		'/clang/usr/share/bpf.ld',
 		'--entry',
 		'entrypoint',
-		'/data/compiler_builtins.rlib'
+		'/clang/usr/lib/libcompiler_builtins.rlib'
 	];
 
 	async function loadCompiler() {
@@ -79,16 +76,21 @@ extern uint64_t entrypoint(const uint8_t *input) {
 			lld_factory({ noInitialRun: true })
 		]);
 
-		// move linker scripts from clang to lld
+		// init clang
 
-		const linker_script = await clang.FS.readFile('/usr/share/bpf.ld');
-		const compiler_builtins = await clang.FS.readFile('/usr/lib/libcompiler_builtins.rlib');
+		await clang.init();
 
-		await lld.FS.mkdir('/data');
+		window.clang = clang;
+		window.lld = lld;
+
+		// mount fs
+
+		await lld.FS.mkdir('/clang');
+		await lld.FS.mount(lld.PROXYFS, { root: '/', fs: clang.FS }, '/clang');
+
+		// create directory /data
+
 		await clang.FS.mkdir('/data');
-
-		await lld.FS.writeFile('/data/bpf.ld', linker_script);
-		await lld.FS.writeFile('/data/compiler_builtins.rlib', compiler_builtins);
 
 		return [clang, lld];
 	}
@@ -96,35 +98,52 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	async function compileAndLink(clang, lld) {
 		// write out code and compile
 		await clang.FS.writeFile('/data/file.c', editor.getValue());
-    let args = new clang.StringList();
-    clang_flags.concat([
-      "-emit-obj",
-      "-triple",
-      "bpfel-unknown-unknownbpefel+solana",
-      "-o",
-      "/data/file.o",
-      "/data/file.c",
-    ]).forEach(x => args.push_back(x));
 
-    const clang_result = await clang.run(args);
+		let args = new clang.StringList();
+		clang_flags
+			.concat([
+				'-emit-obj',
+				'-triple',
+				'bpfel-unknown-unknown-bpfel+solana',
+				'-o',
+				'/data/file.o',
+				'/data/file.c'
+			])
+			.forEach((x) => args.push_back(x));
+
+		const clang_result = await clang.run(args);
 		if (clang_result != 0) {
 			throw new Error(`clang exited with error code: ${clang_result}`);
 		}
 
+		// sync fs
+
+		await new Promise((resolve, reject) =>
+			clang.FS.syncfs(false, (err) => {
+				if (err) reject(err);
+				resolve();
+			})
+		);
+
+		await new Promise((resolve, reject) =>
+			clang.FS.syncfs(true, (err) => {
+				if (err) reject(err);
+				resolve();
+			})
+		);
+
 		// link object file into shared object
+
 		console.log('Linking...');
 
-		const object_file = await clang.FS.readFile('/data/file.o');
-		await lld.FS.writeFile('/data/file.o', object_file);
-
 		const lld_result = await lld.callMain(
-			lld_flags.concat(['-o', '/data/file.so', '/data/file.o'])
+			lld_flags.concat(['-o', '/clang/data/file.so', '/clang/data/file.o'])
 		);
 		if (lld_result != 0) {
 			throw new Error(`lld exited with error code: ${lld_result}`);
 		}
 
-		const shared_object_file = await lld.FS.readFile('/data/file.so');
+		const shared_object_file = await lld.FS.readFile('/clang/data/file.so');
 		console.log('program:', shared_object_file);
 	}
 
@@ -138,7 +157,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		const monaco = await import('monaco-editor');
 
 		self.MonacoEnvironment = {
-			getWorker: function (_module_id, label) {
+			getWorker: function (_module_id, _label) {
 				return new editorWorker();
 			}
 		};
