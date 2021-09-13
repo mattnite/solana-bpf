@@ -20,6 +20,8 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <emscripten.h>
+#include <emscripten/bind.h>
 
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -47,22 +49,49 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message, bool Ge
     llvm::sys::Process::Exit(GenCrashDiag ? 70 : 1);
 }
 
-extern "C" bool compile(ArrayRef<const char *> Argv, const char *Argv0)
-{
-    std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
-    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-
+extern "C" int init() {
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmPrinters();
     llvm::InitializeAllAsmParsers();
 
+
+    //const char *argv[] = {"clang"};
+    //llvm::InitLLVM();
+    if (llvm::sys::Process::FixupStandardFileDescriptors())
+        return 1;
+
+    return 0;
+}
+
+int run(const std::vector<std::string>& args)
+{
+    //SmallVector<const char *, 256> args;
+    llvm::BumpPtrAllocator A;
+    llvm::StringSaver Saver(A);
+    //llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv, /*MarkEOLs=*/false);
+
+    std::vector<std::string> args_copy;
+    for (auto &arg : args)
+    {
+        std::cout << "arg: '" << arg << "'" << std::endl;
+        std::string str = arg;
+        args_copy.push_back(str);
+    }
+
+    std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
+    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
     TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
     DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
 
-    bool Success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(), Argv, Diags, Argv0);
+    // need copy
+    auto c_args = std::vector<const char *>();
+    for (auto &str : args_copy)
+        c_args.push_back(str.c_str());
 
+    bool Success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(), llvm::makeArrayRef(c_args), Diags);
     Clang->createDiagnostics();
     if (!Clang->hasDiagnostics())
         return false;
@@ -79,33 +108,22 @@ extern "C" bool compile(ArrayRef<const char *> Argv, const char *Argv0)
 
     DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
     if (!Success)
-        return false;
+        return 1;
 
     Success = ExecuteCompilerInvocation(Clang.get());
     if (!Success)
-        return false;
+        return 1;
 
     llvm::remove_fatal_error_handler();
 
-    return Success;
+    return 0;
 }
 
-int main(int argc_, const char *argv_[])
-{
-    SmallVector<const char *, 256> argv(argv_, argv_ + argc_);
 
-    llvm::InitLLVM X(argc_, argv_);
-    if (llvm::sys::Process::FixupStandardFileDescriptors())
-        return 1;
 
-    llvm::BumpPtrAllocator A;
-    llvm::StringSaver Saver(A);
-    llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv, /*MarkEOLs=*/false);
+EMSCRIPTEN_BINDINGS(clang) {
+    emscripten::register_vector<std::string>("StringList");
 
-    for (auto &arg : argv)
-    {
-        std::cout << "arg: '" << arg << "'" << std::endl;
-    }
-
-    return !compile(makeArrayRef(argv).slice(1), argv[0]);
+    emscripten::function("init", &init);
+    emscripten::function("run", &run);
 }

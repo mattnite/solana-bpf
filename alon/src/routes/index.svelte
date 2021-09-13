@@ -95,25 +95,23 @@ extern uint64_t entrypoint(const uint8_t *input) {
 
 	async function compileAndLink(clang, lld) {
 		// write out code and compile
-
 		await clang.FS.writeFile('/data/file.c', editor.getValue());
+    let args = new clang.StringList();
+    clang_flags.concat([
+      "-emit-obj",
+      "-triple",
+      "bpfel-unknown-unknownbpefel+solana",
+      "-o",
+      "/data/file.o",
+      "/data/file.c",
+    ]).forEach(x => args.push_back(x));
 
-		const clang_result = await clang.callMain(
-			clang_flags.concat([
-				'-emit-obj',
-				'-triple',
-				'bpfel-unknown-unknownbpefel+solana',
-				'-o',
-				'/data/file.o',
-				'/data/file.c'
-			])
-		);
+    const clang_result = await clang.run(args);
 		if (clang_result != 0) {
 			throw new Error(`clang exited with error code: ${clang_result}`);
 		}
 
 		// link object file into shared object
-
 		console.log('Linking...');
 
 		const object_file = await clang.FS.readFile('/data/file.o');
