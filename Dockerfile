@@ -49,7 +49,7 @@ RUN cp /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtin
 RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project/build-wasm && \
     emcmake cmake -G "Ninja" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s ENVIRONMENT=\"'web,webview,worker,node'\" -s MODULARIZE -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
+        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s ENVIRONMENT=\"'web,webview,worker,node,shell'\" -s MODULARIZE -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
         -DLLVM_ENABLE_PROJECTS="lld;clang" \
         -DLLVM_ENABLE_DUMP=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \
