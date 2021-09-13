@@ -13,10 +13,10 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     ninja-build \
                     wget
 
-RUN git clone --single-branch --branch bpf-tools-v1.15 https://github.com/solana-labs/llvm-project.git
+RUN git clone --depth 1 --single-branch --branch bpf-tools-v1.15 https://github.com/solana-labs/llvm-project.git
 RUN mkdir -p /bpf-tools && wget -qO- https://github.com/solana-labs/bpf-tools/releases/download/v1.15/solana-bpf-tools-linux.tar.bz2 | tar -xj -C bpf-tools
-RUN git clone --single-branch --branch v1.7.11 https://github.com/solana-labs/solana.git
-RUN git clone https://github.com/emscripten-core/emsdk.git && cd emsdk && ./emsdk install 2.0.29 && ./emsdk activate latest
+RUN git clone --depth 1 --single-branch --branch v1.7.11 https://github.com/solana-labs/solana.git
+RUN git clone --depth 1 --single-branch --branch main https://github.com/emscripten-core/emsdk.git && cd emsdk && ./emsdk install 2.0.29 && ./emsdk activate latest
 
 RUN cd llvm-project && mkdir build-host && cd build-host && \
     cmake -G "Ninja" \
@@ -49,7 +49,7 @@ RUN cp /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtin
 RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project/build-wasm && \
     emcmake cmake -G "Ninja" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s ENVIRONMENT=web -s MODULARIZE -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js -lidbfs.js" \
+        -DCMAKE_EXE_LINKER_FLAGS="-s ASSERTIONS=1 -s ENVIRONMENT='web,webview,worker,node' -s MODULARIZE -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"callMain\",\"PROXYFS\"]' -lproxyfs.js" \
         -DLLVM_ENABLE_PROJECTS="lld;clang" \
         -DLLVM_ENABLE_DUMP=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \

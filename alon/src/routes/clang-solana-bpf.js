@@ -1,0 +1,1 @@
+../../../build/clang-solana-bpf.js
