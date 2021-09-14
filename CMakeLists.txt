@@ -6,8 +6,6 @@ file(COPY solana/sdk/bpf/c/inc/ DESTINATION usr/include/solana)
 file(COPY solana/sdk/bpf/c/bpf.ld DESTINATION usr/share)
 file(COPY test/logging.c DESTINATION usr/share)
 file(COPY /llvm-project/build-wasm/lib/clang/12.0.1/include/ DESTINATION usr/include/clang)
-file(COPY /llvm-project/build-wasm/bin/lld.js DESTINATION .)
-file(COPY /llvm-project/build-wasm/bin/lld.wasm DESTINATION .)
 if(EXISTS /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib)
 file(RENAME /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins.rlib)
 endif()
@@ -21,6 +19,7 @@ target_include_directories(clang-solana-bpf
         PRIVATE /llvm-project/build-wasm/tools/clang/include
         PRIVATE /llvm-project/clang/include
         PRIVATE /llvm-project/llvm/include
+        PRIVATE /llvm-project/lld/include
         PRIVATE usr/include)
 
 target_compile_options(clang-solana-bpf PRIVATE
