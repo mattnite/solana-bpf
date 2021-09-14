@@ -3,7 +3,6 @@
 	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
 	import clang_factory from './clang-solana-bpf.js';
-	import lld_factory from './lld.js';
 
 	let code = `/**
  * @brief A program demonstrating logging
@@ -44,7 +43,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
   return logging(&params);
 }`;
 
-	let clang_flags = [
+	let compile_flags = [
 		'-Werror',
 		'-O2',
 		'-fno-builtin',
@@ -57,9 +56,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		'2'
 	];
 
-	let lld_flags = [
-		'-flavor',
-		'ld',
+	let link_flags = [
 		'-z',
 		'notext',
 		'-shared',
@@ -71,70 +68,47 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	];
 
 	async function loadCompiler() {
-		const [clang, lld] = await Promise.all([
-			clang_factory({ noInitialRun: true }),
-			lld_factory({ noInitialRun: true })
-		]);
-
-		window.clang = clang;
-		window.lld = lld;
+		const Module = await clang_factory({ noInitialRun: true });
 
 		// create directory /data
-
-		await lld.FS.mkdir('/data');
-		await clang.FS.mkdir('/data');
-
-		// move linker scripts
-
-		const linker_script = await clang.FS.readFile('/usr/share/bpf.ld');
-		await lld.FS.writeFile('/data/bpf.ld', linker_script);
-
-		const compiler_builtins = await clang.FS.readFile('/usr/lib/libcompiler_builtins.rlib');
-		await lld.FS.writeFile('/data/libcompiler_builtins.rlib', compiler_builtins);
+		await Module.FS.mkdir('/data');
 
 		// init clang
+		window.Module = ClangModule;
+		window.clang = new ClangModule.Clang()
 
-		await clang.init();
-
-		return [clang, lld];
+		return [Module, clang];
 	}
 
-	async function compileAndLink(clang, lld) {
+	async function compileAndLink(Module, clang) {
 		// write out code and compile
-		await clang.FS.writeFile('/data/file.c', editor.getValue());
+		await Module.FS.writeFile('/data/file.c', editor.getValue());
 
-		let args = new clang.StringList();
-		clang_flags
-			.concat([
-				'-emit-obj',
-				'-triple',
-				'bpfel-unknown-unknown-bpfel+solana',
-				'-o',
-				'/data/file.o',
-				'/data/file.c'
-			])
-			.forEach((x) => args.push_back(x));
+		let compile_args = new Module.StringList();
+		compile_flags.concat([
+			'-emit-obj',
+			'-triple',
+			'bpfel-unknown-unknown-bpfel+solana',
+			'-o',
+			'/data/file.o',
+			'/data/file.c'
+		]).forEach(x => compile_args.push_back(x));
 
-		const clang_result = await clang.run(args);
-		if (clang_result != 0) {
-			throw new Error(`clang exited with error code: ${clang_result}`);
+		if (!await clang.compile(compile_args)) {
+			throw new Error('failed to compile');
 		}
 
 		// link object file into shared object
-
 		console.log('Linking...');
 
-		const object_file = await clang.FS.readFile('/data/file.o');
-		await lld.FS.writeFile('/data/file.o', object_file);
+		let link_args = new Module.StringList();
+		link_flags.concat(['-o', '/data/file.so', '/data/file.o']).forEach(x => link_args.push_back(x))
 
-		const lld_result = await lld.callMain(
-			lld_flags.concat(['-o', '/data/file.so', '/data/file.o'])
-		);
-		if (lld_result != 0) {
-			throw new Error(`lld exited with error code: ${lld_result}`);
+		if (!await clang.linkBpf(link_args)) {
+			throw new Error('failed to link');
 		}
 
-		const shared_object_file = await lld.FS.readFile('/data/file.so');
+		const shared_object_file = await Module.FS.readFile('/data/file.so');
 		console.log('program:', shared_object_file);
 	}
 
@@ -167,15 +141,15 @@ extern uint64_t entrypoint(const uint8_t *input) {
 </script>
 
 <div id="editor" bind:this={editor_element} />
-<input type="text" value={clang_flags.join(' ')} />
-<input type="text" value={lld_flags.join(' ')} />
+<input type="text" value={compile_flags.join(' ')} />
+<input type="text" value={link_flags.join(' ')} />
 
 {#await compiling_promise}
 	<button disabled>Build</button>
-{:then [[clang, lld], _]}
+{:then [[Module, clang], _]}
 	<button
 		on:click|once={() =>
-			(compiling_promise = Promise.all([compiler_promise, compileAndLink(clang, lld)]))}
+			(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
 		>Build</button
 	>
 {/await}

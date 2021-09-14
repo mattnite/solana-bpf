@@ -21,6 +21,7 @@ target_include_directories(clang-solana-bpf
         PRIVATE /llvm-project/build-wasm/tools/clang/include
         PRIVATE /llvm-project/clang/include
         PRIVATE /llvm-project/llvm/include
+        PRIVATE /llvm-project/lld/include
         PRIVATE usr/include)
 
 target_compile_options(clang-solana-bpf PRIVATE
