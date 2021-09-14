@@ -41,7 +41,8 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "lld/Common/Driver.h"
 
-struct LinkResult {
+struct LinkResult
+{
     bool result;
     std::string out;
     std::string err;
@@ -55,8 +56,10 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message, bool Ge
     llvm::sys::Process::Exit(GenCrashDiag ? 70 : 1);
 }
 
-struct Clang {
-    Clang() {
+struct Clang
+{
+    Clang()
+    {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
@@ -66,9 +69,11 @@ struct Clang {
             throw std::runtime_error("failed to fixup std file descriptors");
     }
 
-    bool compile(const std::vector<std::string>& args) {
+    bool compile(const std::vector<std::string> &args)
+    {
         std::vector<std::string> args_copy;
-        for (auto &arg : args) {
+        for (auto &arg : args)
+        {
             std::string str = arg;
             args_copy.push_back(str);
             emscripten_log(EM_LOG_DEBUG, "arg: %s", arg.c_str());
@@ -105,9 +110,11 @@ struct Clang {
         return true;
     }
 
-    LinkResult link_bpf(const std::vector<std::string>& args) {
+    LinkResult link_bpf(const std::vector<std::string> &args)
+    {
         std::vector<std::string> args_copy;
-        for (auto &arg : args) {
+        for (auto &arg : args)
+        {
             std::string str = arg;
             args_copy.push_back(str);
             emscripten_log(EM_LOG_DEBUG, "arg: %s", arg.c_str());
@@ -128,9 +135,11 @@ struct Clang {
         };
     }
 
-    LinkResult link_wasm(const std::vector<std::string>& args) {
+    LinkResult link_wasm(const std::vector<std::string> &args)
+    {
         std::vector<std::string> args_copy;
-        for (auto &arg : args) {
+        for (auto &arg : args)
+        {
             std::string str = arg;
             args_copy.push_back(str);
             emscripten_log(EM_LOG_DEBUG, "arg: %s", arg.c_str());
@@ -152,13 +161,16 @@ struct Clang {
     }
 };
 
-
-EMSCRIPTEN_BINDINGS(Clang) {
+EMSCRIPTEN_BINDINGS(Clang)
+{
     emscripten::register_vector<std::string>("StringList");
+    emscripten::class_<LinkResult>("LinkResult")
+        .property("result", &LinkResult::result)
+        .property("out", &LinkResult::out)
+        .property("err", &LinkResult::err);
     emscripten::class_<Clang>("Clang")
         .constructor<>()
         .function("compile", &Clang::compile)
         .function("linkBpf", &Clang::link_bpf)
-        .function("linkWasm", &Clang::link_wasm)
-    ;
+        .function("linkWasm", &Clang::link_wasm);
 }

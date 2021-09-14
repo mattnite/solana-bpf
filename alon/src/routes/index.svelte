@@ -57,27 +57,28 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	];
 
 	let link_flags = [
+		'lld',
 		'-z',
 		'notext',
 		'-shared',
 		'--Bdynamic',
-		'/data/bpf.ld',
+		'/usr/share/bpf.ld',
 		'--entry',
 		'entrypoint',
-		'/data/libcompiler_builtins.rlib'
+		'/usr/lib/libcompiler_builtins.rlib/libcompiler_builtins.rlib'
 	];
 
 	async function loadCompiler() {
-		const Module = await clang_factory({ noInitialRun: true });
+		const compiler = await clang_factory({ noInitialRun: true });
 
 		// create directory /data
-		await Module.FS.mkdir('/data');
+		await compiler.FS.mkdir('/data');
 
 		// init clang
-		window.Module = ClangModule;
-		window.clang = new ClangModule.Clang()
+		window.compiler = compiler;
+		window.clang = new compiler.Clang();
 
-		return [Module, clang];
+		return [compiler, clang];
 	}
 
 	async function compileAndLink(Module, clang) {
@@ -85,16 +86,19 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		await Module.FS.writeFile('/data/file.c', editor.getValue());
 
 		let compile_args = new Module.StringList();
-		compile_flags.concat([
-			'-emit-obj',
-			'-triple',
-			'bpfel-unknown-unknown-bpfel+solana',
-			'-o',
-			'/data/file.o',
-			'/data/file.c'
-		]).forEach(x => compile_args.push_back(x));
+		compile_flags
+			.concat([
+				'-emit-obj',
+				'-triple',
+				'bpfel-unknown-unknown-bpfel+solana',
+				'-o',
+				'/data/file.o',
+				'/data/file.c'
+			])
+			.forEach((x) => compile_args.push_back(x));
 
-		if (!await clang.compile(compile_args)) {
+		const compile_result = await clang.compile(compile_args);
+		if (!compile_result) {
 			throw new Error('failed to compile');
 		}
 
@@ -102,11 +106,16 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		console.log('Linking...');
 
 		let link_args = new Module.StringList();
-		link_flags.concat(['-o', '/data/file.so', '/data/file.o']).forEach(x => link_args.push_back(x))
+		link_flags
+			.concat(['-o', '/data/file.so', '/data/file.o'])
+			.forEach((x) => link_args.push_back(x));
 
-		if (!await clang.linkBpf(link_args)) {
+		const link_result = await clang.linkBpf(link_args);
+		if (!link_result) {
 			throw new Error('failed to link');
 		}
+
+		console.log('link result:', link_result);
 
 		const shared_object_file = await Module.FS.readFile('/data/file.so');
 		console.log('program:', shared_object_file);
