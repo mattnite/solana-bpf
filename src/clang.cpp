@@ -41,6 +41,12 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "lld/Common/Driver.h"
 
+struct LinkResult {
+    bool result;
+    std::string out;
+    std::string err;
+};
+
 static void LLVMErrorHandler(void *UserData, const std::string &Message, bool GenCrashDiag)
 {
     clang::DiagnosticsEngine &Diags = *static_cast<clang::DiagnosticsEngine *>(UserData);
@@ -99,7 +105,7 @@ struct Clang {
         return true;
     }
 
-    bool link_bpf(const std::vector<std::string>& args) {
+    LinkResult link_bpf(const std::vector<std::string>& args) {
         std::vector<std::string> args_copy;
         for (auto &arg : args) {
             std::string str = arg;
@@ -115,10 +121,14 @@ struct Clang {
         llvm::raw_string_ostream stdout_stream(out);
         llvm::raw_string_ostream stderr_stream(err);
 
-        return lld::elf::link(llvm::makeArrayRef(c_args), false, stdout_stream, stderr_stream);
+        return LinkResult{
+            lld::elf::link(llvm::makeArrayRef(c_args), false, stdout_stream, stderr_stream),
+            out,
+            err,
+        };
     }
 
-    bool link_wasm(const std::vector<std::string>& args) {
+    LinkResult link_wasm(const std::vector<std::string>& args) {
         std::vector<std::string> args_copy;
         for (auto &arg : args) {
             std::string str = arg;
@@ -134,7 +144,11 @@ struct Clang {
         llvm::raw_string_ostream stdout_stream(out);
         llvm::raw_string_ostream stderr_stream(err);
 
-        return lld::wasm::link(llvm::makeArrayRef(c_args), false, stdout_stream, stderr_stream);
+        return LinkResult{
+            lld::wasm::link(llvm::makeArrayRef(c_args), false, stdout_stream, stderr_stream),
+            out,
+            err,
+        };
     }
 };
 
