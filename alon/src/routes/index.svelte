@@ -65,7 +65,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		'/usr/share/bpf.ld',
 		'--entry',
 		'entrypoint',
-		'/usr/lib/libcompiler_builtins.rlib/libcompiler_builtins.rlib'
+		'/usr/lib/libcompiler_builtins.rlib'
 	];
 
 	async function loadCompiler() {
