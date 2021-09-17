@@ -57,7 +57,6 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	];
 
 	let link_flags = [
-		'lld',
 		'-z',
 		'notext',
 		'-shared',
@@ -118,6 +117,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		console.log('link result:', link_result);
 
 		const shared_object_file = await Module.FS.readFile('/data/file.so');
+		await Module.FS.unlink('/data/file.so');
 		console.log('program:', shared_object_file);
 	}
 

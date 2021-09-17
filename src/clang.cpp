@@ -113,6 +113,7 @@ struct Clang
     LinkResult link_bpf(const std::vector<std::string> &args)
     {
         std::vector<std::string> args_copy;
+        args_copy.push_back("ld.lld");
         for (auto &arg : args)
         {
             std::string str = arg;
@@ -138,6 +139,7 @@ struct Clang
     LinkResult link_wasm(const std::vector<std::string> &args)
     {
         std::vector<std::string> args_copy;
+        args_copy.push_back("wasm-ld");
         for (auto &arg : args)
         {
             std::string str = arg;
