@@ -157,7 +157,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 
 <div id="container">
 	<div id="left">
-		<h1>Alon</h1>
+		<h2>ALON</h2>
 	</div>
 	<div id="main">
 		<div id="options">
@@ -187,21 +187,21 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	</div>
 	<div id="right">
 		<div class="console">
-			<h3>compiler</h3>
+			<b>compiler</b>
 			<div class="output">
 				<textarea />
 			</div>
 		</div>
 
 		<div class="console">
-			<h3>test</h3>
+			<b>test</b>
 			<div class="output">
 				<textarea />
 			</div>
 		</div>
 
 		<div class="console">
-			<h3>solana</h3>
+			<b>solana</b>
 			<div class="output">
 				<textarea />
 			</div>
@@ -210,6 +210,18 @@ extern uint64_t entrypoint(const uint8_t *input) {
 </div>
 
 <style>
+	* {
+		font-family: 'Droid Sans Mono', monospace, monospace, 'Droid Sans Fallback';
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		padding: 0;
+		margin: 0;
+	}
+
 	#container {
 		display: flex;
 		width: 100%;
@@ -222,7 +234,11 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		display: flex;
 		flex-direction: column;
 		width: 300px;
-		padding: 1em;
+	}
+
+	#container > #left > h2 {
+		padding: 0.5em;
+		width: 100%;
 	}
 
 	#container > #right {
@@ -238,7 +254,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		flex: 1;
 	}
 
-	#container > #right > .console > h3 {
+	#container > #right > .console > b {
 		padding-top: 0.5em;
 		padding-left: 0.5em;
 		padding-right: 0.5em;
