@@ -161,6 +161,14 @@ extern uint64_t entrypoint(const uint8_t *input) {
 			(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
 		>Build</button
 	>
+{:catch}
+	{#await compiler_promise then [Module, clang]}
+		<button
+			on:click|once={() =>
+				(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
+			>Build</button
+		>
+	{/await}
 {/await}
 
 <style>
