@@ -138,7 +138,13 @@ extern uint64_t entrypoint(const uint8_t *input) {
 
 		editor = monaco.editor.create(editor_element, {
 			value: code,
-			language: 'c'
+			language: 'c',
+			theme: 'vs-dark',
+			scrollbar: {
+				horizontal: 'auto',
+				vertical: 'visible'
+			}
+			// automaticLayout: true
 		});
 
 		window.addEventListener('resize', () => editor.layout(), false);
@@ -150,12 +156,10 @@ extern uint64_t entrypoint(const uint8_t *input) {
 </script>
 
 <div id="container">
-	<div id="sidebar">
+	<div id="left">
 		<h1>Alon</h1>
 	</div>
 	<div id="main">
-		<div id="editor" bind:this={editor_element} />
-
 		<div id="options">
 			<input type="text" value={compile_flags.join(' ')} />
 			<input type="text" value={link_flags.join(' ')} />
@@ -179,7 +183,29 @@ extern uint64_t entrypoint(const uint8_t *input) {
 			{/await}
 		</div>
 
-		<div id="output" />
+		<div id="editor" bind:this={editor_element} />
+	</div>
+	<div id="right">
+		<div class="console">
+			<h3>compiler</h3>
+			<div class="output">
+				<textarea />
+			</div>
+		</div>
+
+		<div class="console">
+			<h3>test</h3>
+			<div class="output">
+				<textarea />
+			</div>
+		</div>
+
+		<div class="console">
+			<h3>solana</h3>
+			<div class="output">
+				<textarea />
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -189,20 +215,62 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		width: 100%;
 		height: 100%;
 		flex-direction: row;
+		justify-content: space-between;
 	}
 
-	#container > #sidebar {
+	#container > #left {
 		display: flex;
 		flex-direction: column;
-		flex: 1;
+		width: 300px;
+		padding: 1em;
+	}
 
-		margin: 1em;
+	#container > #right {
+		display: flex;
+		flex-direction: column;
+		width: 400px;
+	}
+
+	#container > #right > .console {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		flex: 1;
+	}
+
+	#container > #right > .console > h3 {
+		padding-top: 0.5em;
+		padding-left: 0.5em;
+		padding-right: 0.5em;
+		padding-bottom: 0;
+		margin: 0;
+	}
+
+	#container > #right > .console > .output {
+		flex: 1;
+		width: 100%;
+		padding-top: 0.5em;
+	}
+
+	#container > #right > .console > .output > textarea {
+		width: 100%;
+		height: 100%;
+		background-color: black;
+		padding: 0;
+		border: 0;
 	}
 
 	#container > #main {
 		display: flex;
+		width: calc(100% - 700px);
+		height: 100%;
 		flex-direction: column;
-		flex: 5;
+	}
+
+	#container > #main > #editor {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
 	}
 
 	#container > #main > #options {
@@ -212,15 +280,5 @@ extern uint64_t entrypoint(const uint8_t *input) {
 
 	#container > #main > #options > input {
 		width: 100%;
-	}
-	#container > #main > #editor {
-		width: 100%;
-		height: 100%;
-	}
-
-	#container > #main > #output {
-		width: 100%;
-		height: 500px;
-		background-color: black;
 	}
 </style>
