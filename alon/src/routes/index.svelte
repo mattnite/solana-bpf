@@ -149,35 +149,78 @@ extern uint64_t entrypoint(const uint8_t *input) {
 	});
 </script>
 
-<div id="editor" bind:this={editor_element} />
-<input type="text" value={compile_flags.join(' ')} />
-<input type="text" value={link_flags.join(' ')} />
+<div id="container">
+	<div id="sidebar">
+		<h1>Alon</h1>
+	</div>
+	<div id="main">
+		<div id="editor" bind:this={editor_element} />
 
-{#await compiling_promise}
-	<button disabled>Build</button>
-{:then [[Module, clang], _]}
-	<button
-		on:click|once={() =>
-			(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
-		>Build</button
-	>
-{:catch}
-	{#await compiler_promise then [Module, clang]}
-		<button
-			on:click|once={() =>
-				(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
-			>Build</button
-		>
-	{/await}
-{/await}
+		<div id="options">
+			<input type="text" value={compile_flags.join(' ')} />
+			<input type="text" value={link_flags.join(' ')} />
+
+			{#await compiling_promise}
+				<button disabled>Build</button>
+			{:then [[Module, clang], _]}
+				<button
+					on:click|once={() =>
+						(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
+					>Build</button
+				>
+			{:catch}
+				{#await compiler_promise then [Module, clang]}
+					<button
+						on:click|once={() =>
+							(compiling_promise = Promise.all([compiler_promise, compileAndLink(Module, clang)]))}
+						>Build</button
+					>
+				{/await}
+			{/await}
+		</div>
+
+		<div id="output" />
+	</div>
+</div>
 
 <style>
-	#editor {
+	#container {
+		display: flex;
 		width: 100%;
-		height: 50%;
+		height: 100%;
+		flex-direction: row;
 	}
 
-	input {
+	#container > #sidebar {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+
+		margin: 1em;
+	}
+
+	#container > #main {
+		display: flex;
+		flex-direction: column;
+		flex: 5;
+	}
+
+	#container > #main > #options {
+		display: flex;
+		flex-direction: row;
+	}
+
+	#container > #main > #options > input {
 		width: 100%;
+	}
+	#container > #main > #editor {
+		width: 100%;
+		height: 100%;
+	}
+
+	#container > #main > #output {
+		width: 100%;
+		height: 500px;
+		background-color: black;
 	}
 </style>
