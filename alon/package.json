@@ -16,6 +16,7 @@
   },
   "type": "module",
   "dependencies": {
+    "ansi-to-html": "^0.7.1",
     "monaco-editor": "^0.27.0",
     "svelte-preprocess": "^4.9.4"
   }

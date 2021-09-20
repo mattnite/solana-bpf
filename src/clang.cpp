@@ -27,7 +27,7 @@
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Frontend/TextDiagnosticBuffer.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/FrontendTool/Utils.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/Support/InitLLVM.h"
@@ -43,9 +43,15 @@
 
 struct LinkResult
 {
-    bool result;
+    bool success;
     std::string out;
     std::string err;
+};
+
+struct CompileResult
+{
+    bool success;
+    std::string diags;
 };
 
 static void LLVMErrorHandler(void *UserData, const std::string &Message, bool GenCrashDiag)
@@ -69,7 +75,7 @@ struct Clang
             throw std::runtime_error("failed to fixup std file descriptors");
     }
 
-    bool compile(const std::vector<std::string> &args)
+    CompileResult compile(const std::vector<std::string> &args)
     {
         std::vector<std::string> args_copy;
         for (auto &arg : args)
@@ -83,31 +89,37 @@ struct Clang
         for (auto &str : args_copy)
             c_args.push_back(str.c_str());
 
+        std::string diags_str;
+        llvm::raw_string_ostream diags_stream(diags_str);
+        diags_stream.enable_colors(true);
+
         std::unique_ptr<clang::CompilerInstance> compiler(new clang::CompilerInstance());
         clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> diag_id(new clang::DiagnosticIDs());
         clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diag_opts = new clang::DiagnosticOptions();
-        clang::TextDiagnosticBuffer *diags_buffer = new clang::TextDiagnosticBuffer;
-        clang::DiagnosticsEngine Diags(diag_id, &*diag_opts, diags_buffer);
+        diag_opts.get()->ShowColors = 1;
+        clang::TextDiagnosticPrinter *diags_printer = new clang::TextDiagnosticPrinter(diags_stream, diag_opts.get());
+        clang::DiagnosticsEngine diags(diag_id, diag_opts);
 
-        bool success = clang::CompilerInvocation::CreateFromArgs(compiler->getInvocation(), llvm::makeArrayRef(c_args), Diags);
-        compiler->createDiagnostics();
-        if (!compiler->hasDiagnostics())
-            return false;
+        bool success = clang::CompilerInvocation::CreateFromArgs(compiler->getInvocation(), llvm::makeArrayRef(c_args), diags);
+        compiler->createDiagnostics(diags_printer);
+        if (!compiler->hasDiagnostics()) {
+            emscripten_log(EM_LOG_ERROR, "no diags");
+            return CompileResult{ false, diags_str };
+        }
 
         llvm::install_fatal_error_handler(LLVMErrorHandler, static_cast<void *>(&compiler->getDiagnostics()));
         for (auto &input : compiler->getFrontendOpts().Inputs)
             emscripten_log(EM_LOG_DEBUG, "input: '%s'", input.getFile().data());
 
         emscripten_log(EM_LOG_DEBUG, "output: '%s'", compiler->getFrontendOpts().OutputFile.data());
-        diags_buffer->FlushDiagnostics(compiler->getDiagnostics());
         if (!success)
-            return false;
+            return CompileResult{ false, diags_str };
 
         if (!ExecuteCompilerInvocation(compiler.get()))
-            return false;
+            return CompileResult{ false, diags_str };
 
         llvm::remove_fatal_error_handler();
-        return true;
+        return CompileResult{ true, diags_str };
     }
 
     LinkResult link_bpf(const std::vector<std::string> &args)
@@ -167,9 +179,12 @@ EMSCRIPTEN_BINDINGS(Clang)
 {
     emscripten::register_vector<std::string>("StringList");
     emscripten::class_<LinkResult>("LinkResult")
-        .property("result", &LinkResult::result)
+        .property("success", &LinkResult::success)
         .property("out", &LinkResult::out)
         .property("err", &LinkResult::err);
+    emscripten::class_<CompileResult>("CompileResult")
+        .property("success", &CompileResult::success)
+        .property("diags", &CompileResult::diags);
     emscripten::class_<Clang>("Clang")
         .constructor<>()
         .function("compile", &Clang::compile)

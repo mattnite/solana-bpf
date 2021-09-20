@@ -1,8 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
 	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-
 	import clang_factory from './clang-solana-bpf.js';
+	import Convert from 'ansi-to-html';
+
+	var convert = new Convert({ newline: true });
+	const toHtml = text => `${convert.toHtml(text)}`;
 
 	let code = `/**
  * @brief A program demonstrating logging
@@ -67,6 +70,8 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		'/usr/lib/libcompiler_builtins.rlib'
 	];
 
+	let compiler_text = "starting text";
+
 	async function loadCompiler() {
 		const compiler = await clang_factory({ noInitialRun: true });
 
@@ -94,11 +99,12 @@ extern uint64_t entrypoint(const uint8_t *input) {
 				'/data/file.o',
 				'/data/file.c'
 			])
-			.forEach((x) => compile_args.push_back(x));
+			.forEach(x => compile_args.push_back(x));
 
 		const compile_result = await clang.compile(compile_args);
-		if (!compile_result) {
-			throw new Error('failed to compile');
+		if (!compile_result.success) {
+			compiler_text = compile_result.diags; 
+			return;
 		}
 
 		// link object file into shared object
@@ -107,18 +113,18 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		let link_args = new Module.StringList();
 		link_flags
 			.concat(['-o', '/data/file.so', '/data/file.o'])
-			.forEach((x) => link_args.push_back(x));
+			.forEach(x => link_args.push_back(x));
 
 		const link_result = await clang.linkBpf(link_args);
-		if (!link_result) {
-			throw new Error('failed to link');
+		if (!link_result.success) {
+			compiler_text = link_result.err;
+			return;
 		}
-
-		console.log('link result:', link_result);
 
 		const shared_object_file = await Module.FS.readFile('/data/file.so');
 		await Module.FS.unlink('/data/file.so');
 		console.log('program:', shared_object_file);
+		compiler_text = `success! binary size: ${shared_object_file.byteLength} bytes`;
 	}
 
 	let compiler_promise = loadCompiler();
@@ -189,7 +195,7 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		<div class="console">
 			<b>compiler</b>
 			<div class="output">
-				<textarea />
+				{@html toHtml(compiler_text)}
 			</div>
 		</div>
 
@@ -266,6 +272,10 @@ extern uint64_t entrypoint(const uint8_t *input) {
 		flex: 1;
 		width: 100%;
 		padding-top: 0.5em;
+		overflow: auto;
+		white-space: nowrap;
+		background-color: black;
+		color: grey;
 	}
 
 	#container > #right > .console > .output > textarea {
