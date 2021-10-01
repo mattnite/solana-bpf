@@ -29,7 +29,6 @@ RUN cd llvm-project && mkdir build-host && cd build-host && \
         -DLLVM_ENABLE_ZLIB=OFF \
         -DLLVM_ENABLE_BACKTRACES=OFF \
         -DLLVM_TARGETS_TO_BUILD="X86;WebAssembly" \
-        -DLLVM_BUILD_TOOLS=OFF \
         -DLLVM_ENABLE_THREADS=OFF \
         -DLLVM_BUILD_LLVM_DYLIB=OFF \
         -DLLVM_INCLUDE_TESTS=OFF \
@@ -72,5 +71,12 @@ RUN cd emsdk && . ./emsdk_env.sh && cd /llvm-project/build-wasm && \
         -DCLANG_TABLEGEN=../build-host/bin/clang-tblgen \
         -DLLVM_TARGET_ARCH=wasm32 \
         ../llvm && ninja
+
+RUN apt install -y asciidoctor
+RUN git clone https://github.com/WebAssembly/wasi-libc.git --recursive
+RUN cd /wasi-libc && \
+    WASM_CC=/llvm-project/build-host/bin/clang \
+    make -j4
+RUN wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/libclang_rt.builtins-wasm32-wasi-12.0.tar.gz && tar xf libclang_rt.builtins-wasm32-wasi-12.0.tar.gz
 
 CMD ["/work/build.sh"]

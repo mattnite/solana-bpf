@@ -1,0 +1,6 @@
+22a23
+> #ifndef ALON_TEST
+36a38,40
+> #else
+> #include <stdint.h>
+> #endif

@@ -6,10 +6,18 @@ file(COPY solana/sdk/bpf/c/inc/ DESTINATION usr/include/solana)
 file(COPY solana/sdk/bpf/c/bpf.ld DESTINATION usr/share)
 file(COPY test/logging.c DESTINATION usr/share)
 file(COPY /llvm-project/build-wasm/lib/clang/12.0.1/include/ DESTINATION usr/include/clang)
+file(COPY /lib/wasi/ DESTINATION usr/lib/clang/12.0.1/lib/wasi)
+file(COPY /wasi-libc/sysroot/ DESTINATION usr/share/wasi-sysroot)
+file(COPY /work/criterion.h DESTINATION usr/include/test/criterion)
+file(COPY /work/solana_test.c DESTINATION usr/share)
 if(EXISTS /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib)
 file(RENAME /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins-1cb126d9e305c2b2.rlib /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins.rlib)
 endif()
 file(COPY /bpf-tools/rust/lib/rustlib/bpfel-unknown-unknown/lib/libcompiler_builtins.rlib DESTINATION usr/lib)
+
+execute_process(COMMAND patch
+        ${CMAKE_BINARY_DIR}/usr/include/solana/sol/types.h
+        ${CMAKE_SOURCE_DIR}/test.patch)
 
 link_directories(/llvm-project/build-wasm/lib)
 add_executable(clang-solana-bpf src/clang.cpp)
