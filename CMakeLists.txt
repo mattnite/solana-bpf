@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.9)
 project(clang-solana-bpf)
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --bind --embed-file usr -s ENVIRONMENT=\"'web,webview,worker,node,shell'\" -s MODULARIZE -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS='[\"FS\"]'")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --bind -s ENVIRONMENT=\"'web,webview,worker,node'\" -s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=0  -s EXPORTED_RUNTIME_METHODS='[\"FS\"]'")
 file(COPY solana/sdk/bpf/c/inc/ DESTINATION usr/include/solana)
 file(COPY solana/sdk/bpf/c/bpf.ld DESTINATION usr/share)
 file(COPY test/logging.c DESTINATION usr/share)
